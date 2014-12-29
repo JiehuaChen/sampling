@@ -6,13 +6,14 @@
 # M.Walsh, J.Chen & A.Verlinden, November 2014
 
 # Required packages
-install.packages(c("downloader","raster","rgdal","MASS","rpart","randomForest"),dependencies=TRUE)
+install.packages(c("downloader","raster","rgdal","MASS","rpart","randomForest", "ridge"),dependencies=TRUE)
 require(downloader)
 require(raster)
 require(rgdal)
 require(MASS)
 require(rpart)
 require(randomForest)
+require(ridge)
 
 # Data downloads ----------------------------------------------------------
 # Create a "Data" folder in your current working directory
@@ -62,7 +63,13 @@ GetPredictions <- function(target, traindata, testX){
 
     # Random forests (no tuning default)
     # Control yield predictions (Yc)
-    Yc.rf <- randomForest(MyTarget~., data = traindata, importance=T, proximity=T)
+
+    oob <- trainControl(method = "oob")
+
+    Yc.rf <- train(MyTarget ~ ., data = traindata,
+                method = "rf",
+                trControl = oob)
+    
     predicts_test <- cbind(predicts_test, predict(Yc.rf, testX))
     return(predicts_test)
 }
@@ -71,8 +78,8 @@ GetPredictions <- function(target, traindata, testX){
 nf <- 5
 nrep <- 3 
 num_wgt <- 3
-wgt <- matrix(runif(num_wgt*nrep,0,1),nrep,num_wgt) 
-wgt <- apply(wgt,1,function(x) x/sum(x))
+
+lambda <- 2:5
 
 TARGETS <- c("Yc", "SRI")
 target_wgt_error <- new.env()
@@ -81,8 +88,7 @@ for(target in TARGETS){
     cat('working on: ', target, '\n')
     wgt_error <- NULL
 
-    for(w in 1:ncol(wgt)){
-        weight <- wgt[, w]
+    for(l in lambda){
         cv_pred_error <- NULL
 
         for(cv in 1:nf){
@@ -98,8 +104,8 @@ for(target in TARGETS){
 
             predicts_test <- GetPredictions(target, traindata, testX)
             # calculate ensemble predictions
-            weighted_pred <-  predicts_test%*%weight
-            cv_pred_error <- c(cv_pred_error,sqrt(sum((weighted_pred-tstTRG)^2)/length(nrow(testX))))
+            ridge_pred <-  linearRidge(tstTRG ~ predicts_test, lambda = l) 
+            cv_pred_error <- c(cv_pred_error,sqrt(sum(predict(ridge_pred)- (tstTRG))^2)/length(nrow(testX))))
             cat('CV error: ', sqrt(sum((weighted.pred-tstTRG)^2)/length(nrow(testX))), '\n')
         }
         wgt_error <- c(wgt_error, mean(cv_pred_error))
@@ -110,7 +116,7 @@ for(target in TARGETS){
 target_wgt_error <- as.list(target_wgt_error)
 
 # get the weights with minial average CV errors for each target
-min_wgt<- wgt[, sapply(target_wgt_error, which.min) ]
+min_lambda<- lambda[sapply(target_wgt_error, which.min) ]
 
 # predictons on the whole grid
 grid_values <- as.data.frame(getValues((mwgrid)))
@@ -121,9 +127,10 @@ for(k in 1:length(names(target_wgt_error))){
     MyTarget <- combinedat[, target]
     traindata <-  data.frame(MyTarget, Xdat)
 
+    ridge_model <- linearRidge(MyTarget~., lambda=min_lambda, data=traindata)
+    
     predicts_test <- GetPredictions(target, traindata, grid_values)
-    ensemble_predicts <- predicts_test%*%min_wgt[,k]
-    ensemble_predicts <- predicts_test%*%min_wgt[,k]
+    ensemble_predicts <- predict(ridge_model, predicts_test)
     predict_grid_1k <- SpatialPointsDataFrame(coords = coordinates(mwgrid), data = data.frame(ensemble_predicts = ensemble_predicts))
     gridded(predict_grid_1k)<-TRUE
     writeGDAL (
