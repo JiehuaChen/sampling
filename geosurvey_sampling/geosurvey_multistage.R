@@ -17,7 +17,7 @@ library(raster)
 ### load multistage sampling code
 
 
-source("mstage_sampling.R")
+source("../code/mstage_sampling.R")
 
 
 ### create output directory
@@ -99,7 +99,7 @@ locsfromcsv(geosurvey_data_file, crp_map, 0.26, 3, 10, colname, response, latcol
 ### Create KML files
 
 
-system("python  spatial_csv_to_kml.py")
+system("python  ../code/spatial_csv_to_kml.py")
 
 
 
