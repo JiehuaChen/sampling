@@ -25,6 +25,8 @@ def csv_to_kml(input_filename):
 	<kml xmlns="http://www.opengis.net/kml/2.2">
 	""")
 	kml_file.write("<Document><name>%s</name>" % input_filename_base)
+	kml_file.write(r""" <Style id="grid1k"><IconStyle> <Icon> <color>ff0000</color> </Icon> </IconStyle></Style>""")
+	
 	kml_file.write(r"""
 	<Schema name="sample" id="sample">
 		<SimpleField name="Name" type="string"></SimpleField>
@@ -37,12 +39,15 @@ def csv_to_kml(input_filename):
 		<SimpleField name="Prob" type="float"></SimpleField>
 	</Schema>
 	""")
-
+        
+        gids_unique = set()
+        gids = []
+        locs_1k = []        
 	# main loop 
 	for line in reader:
 
 		kml_file.write('  <Placemark>\n')
-		kml_file.write('  <name>L2=%s, L1=%s, L0=%s</name>\n' % (line['L2'],line['L1'],line['L0']))
+		kml_file.write('  <name>L0=%s</name>\n' % (line['L0']))
 		kml_file.write('\t<ExtendedData><SchemaData schemaUrl=\"#sample\">\n')
 		kml_file.write(' <SimpleField name="ID_unit">%s</SimpleField>\n' % (line['ID_unit']))
 		kml_file.write('  <SimpleField name="Prob_3_stage">%s</SimpleField>\n' % (line['Prob_ 3 _stage']))
@@ -50,7 +55,23 @@ def csv_to_kml(input_filename):
 		kml_file.write('\t\t</SchemaData></ExtendedData>\n')
 		kml_file.write("     <Point><coordinates>%s,%s</coordinates></Point>\n" % (line['x'], line['y']))
 		kml_file.write('  </Placemark>\n')
-	
+	        
+	        gids_unique.add(line['GID'])
+	        gids.append(line['GID'])
+                locs_1k.append([line['x_1k'], line['y_1k']])
+
+        gids_unique = list(gids_unique)
+        locs_1k_unique = []
+        for gid in gids_unique:
+            locs_1k_unique.append([locs_1k[k] for k, x in enumerate(map(lambda x: x==gid, gids)) if x][0])
+
+        for i, loc in enumerate(locs_1k_unique):
+		kml_file.write('  <Placemark>\n')
+		kml_file.write('  <name>GID=%s</name>\n' % (gids_unique[i]))
+		# kml_file.write(' <styleUrl>#grid1k</styleUrl>\n')
+		kml_file.write("     <Point><coordinates>%s,%s</coordinates></Point>\n" % (loc[0], loc[1]))
+		kml_file.write('  </Placemark>\n')
+
 	# epilogue
 	kml_file.write('\t</Document>\n\t</kml>')
 	csv_file.close()

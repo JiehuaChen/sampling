@@ -1,28 +1,29 @@
-library(lattice)
-require(proj4)
-require(sampling)
-library(MASS)
-library(rgdal)
-library(raster)
-
 
 source("mstage.R")
 source("colMeans_new.R")
+source("GID_generator.R")
 
 ### locations is a 1 by 2 matrix with center grid longitude and latitude
 
 mstage_sampling <- function(location, n_pixel){
 
-    utm_zone = ceiling(1 + floor((location[1]+180)/6.0))
-    proj_para <- paste("+proj=utm +zone=", utm_zone,  " +datum=WGS84 +units=m +no_defs", sep="")
+    proj_para <-  "+proj=laea +ellps=WGS84 +lon_0=20 +lat_0=5 +units=m +no_defs"
+
     xycenter.location <- project(as.matrix(location),proj_para)
+    
+    #GID
+    GID_center <- GID(xycenter.location) 
+    res.pixel <- 1000
+
+    xycenter.GID <- c(GID_center$xgid*res.pixel, GID_center$ygid*res.pixel)
+    xycenter.GID <- ifelse(xycenter.location<0, -xycenter.GID, xycenter.GID)
+
 
     ### specify grid resolution (grain, in m)
     grain <- 100
 
-
-    xoff <-  xycenter.location[1]-5000 + grain/2
-    yoff <- xycenter.location[2]-5000 + grain/2
+    xoff <-  xycenter.GID[1]-5000 + grain/2
+    yoff <-  xycenter.GID[2]-5000 + grain/2
 
     xdim <- 100
     ydim <- 100
@@ -53,7 +54,9 @@ mstage_sampling <- function(location, n_pixel){
     ### update grid with level ID's
     grid <- cbind(grid, L2, L1, L0)
     grid <- merge(loc1k, grid, by=c("L2", "L1"))
-
+   
+    GID_grid <- GID(cbind(grid$x, grid$y))
+    grid <- cbind(grid, GID=GID_grid$GID)
     ### draw a sample
     ### s.size specifies the sample size at each level (e.g. L2=4, L1=4, L0=10)
     s.size <- list(4, rep(4, 4), rep(n_pixel, 16))
@@ -68,6 +71,7 @@ mstage_sampling <- function(location, n_pixel){
     coordinates(sample.DGG) <- ~x+y
     proj4string(sample.DGG) <- DGG
     sample.LL <- spTransform(sample.DGG, CRS("+proj=longlat +datum=WGS84"))
+
 
     ### write an OGR file (e.g. KML) for visualization, navigation ... 
     ### for different OGR drivers see: http://www.gdal.org/ogr/ogr_formats.html
