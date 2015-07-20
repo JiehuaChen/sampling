@@ -77,12 +77,18 @@ def csv_to_kml(input_filename):
 	    project = pyproj.Proj(proj_para)
 	    loc_laea = list(project(loc[0], loc[1]))
 	    center_pt = kml.newpoint(name=gids_unique[i], description="1k by 1k grid", coords=[(loc[0], loc[1])])
-	    lin = kml.newlinestring(name="1k grid", description="A pathway in Kirstenbosch", coords=[project(loc_laea[0]-500, loc_laea[1]+500, inverse=True), 
-	                                                                                      project(loc_laea[0]+500, loc_laea[1]+500, inverse=True), 
-	                                                                                      project(loc_laea[0]+500, loc_laea[1]-500, inverse=True),
-	                                                                                      project(loc_laea[0]-500, loc_laea[1]-500, inverse=True), 
-	                                                                                      project(loc_laea[0]-500, loc_laea[1]+500, inverse=True)])
-	    
+            pol = kml.newpolygon(name="1k grid", description="A pathway in Kirstenbosch",  
+                                 outerboundaryis=[project(loc_laea[0]-500, loc_laea[1]+500, inverse=True), 
+                                                  project(loc_laea[0]+500, loc_laea[1]+500, inverse=True), 
+                                                  project(loc_laea[0]+500, loc_laea[1]-500, inverse=True),
+                                                  project(loc_laea[0]-500, loc_laea[1]-500, inverse=True), 
+                                                  project(loc_laea[0]-500, loc_laea[1]+500, inverse=True)],
+                                 innerboundaryis=[project(loc_laea[0]-500, loc_laea[1]+500, inverse=True), 
+                                                  project(loc_laea[0]+500, loc_laea[1]+500, inverse=True), 
+                                                  project(loc_laea[0]+500, loc_laea[1]-500, inverse=True),
+                                                  project(loc_laea[0]-500, loc_laea[1]-500, inverse=True), 
+                                                  project(loc_laea[0]-500, loc_laea[1]+500, inverse=True)])
+            pol.polystyle.color = 'ff0000ff' 
 	    kml.save("csv/"+gids_unique[i]+".kml")
 
 if __name__ == '__main__':
