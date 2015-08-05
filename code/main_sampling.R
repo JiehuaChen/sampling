@@ -1,3 +1,10 @@
+library(lattice)
+require(proj4)
+require(sampling)
+library(MASS)
+library(rgdal)
+library(raster)
+
 
 source("mstage_sampling.R")
 
@@ -11,7 +18,9 @@ for(i in fileincsv){
     file.remove(i)
 }
 
-center_loc <- matrix(c(36, -3), 1, 2)
+center_loc <- matrix(c(37.115738, 7.042674), 1, 2)
+
+mstage_sampling(center_loc, 10, 8000)
 
 system("python  spatial_csv_to_kml.py")
 

@@ -5,7 +5,7 @@ source("GID_generator.R")
 
 ### locations is a 1 by 2 matrix with center grid longitude and latitude
 
-mstage_sampling <- function(location, n_pixel){
+mstage_sampling <- function(location, n_pixel, grid_size){
 
     proj_para <-  "+proj=laea +ellps=WGS84 +lon_0=20 +lat_0=5 +units=m +no_defs"
 
@@ -22,8 +22,8 @@ mstage_sampling <- function(location, n_pixel){
     ### specify grid resolution (grain, in m)
     grain <- 100
 
-    xoff <-  xycenter.GID[1]-5000 + grain/2
-    yoff <-  xycenter.GID[2]-5000 + grain/2
+    xoff <-  xycenter.GID[1]-grid_size/2 + grain/2
+    yoff <-  xycenter.GID[2]-grid_size/2 + grain/2
 
     xdim <- 100
     ydim <- 100
@@ -33,7 +33,7 @@ mstage_sampling <- function(location, n_pixel){
     colnames(grid) <- c("x", "y")
 
     ### set up level ID's at the desired scales (res.pixel, in m)
-    res.pixel <- c(5000, 1000, grain) 
+    res.pixel <- c(grid_size/2, 1000, grain) 
     X2 <- ceiling((grid$x-xoff+1/2*xdim)/res.pixel[1])
     Y2 <- ceiling((grid$y-yoff+1/2*ydim)/res.pixel[1])
     L2 <- cleanstrata(paste(X2, Y2, sep=""))
