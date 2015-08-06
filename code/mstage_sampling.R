@@ -56,13 +56,15 @@ mstage_sampling <- function(location, n_pixel, grid_size){
     grid <- merge(loc1k, grid, by=c("L2", "L1"))
    
     GID_grid <- GID(cbind(grid$x, grid$y))
-    grid <- cbind(grid, GID=GID_grid$GID)
+    grid <- cbind(grid, GID_1k=GID_grid$GID)
+
     ### draw a sample
     ### s.size specifies the sample size at each level (e.g. L2=4, L1=4, L0=10)
     s.size <- list(4, rep(4, 4), rep(n_pixel, 16))
     s <- mstage(grid, stage=list("cluster", "cluster", ""), varnames=list("L2", "L1", "L0"), size=s.size, method="srswor", description=TRUE)
 
     sample.DGG <- getdata(grid, s[[3]])
+
     #### plot1 <- xyplot(y~x, data=sample.DGG, xlab="Easting (m)", ylab="Northing (m)", pch=3, cex=0.5, asp=1)
 
     ### define a spatial point data object & project from DGG to geographic coordinates 
@@ -71,9 +73,14 @@ mstage_sampling <- function(location, n_pixel, grid_size){
     coordinates(sample.DGG) <- ~x+y
     proj4string(sample.DGG) <- DGG
     sample.LL <- spTransform(sample.DGG, CRS("+proj=longlat +datum=WGS84"))
+    
+    sample.LL <- as.data.frame(sample.LL)
 
+    GID_100m <- paste(sample.LL$GID_1k, sample.LL$L0-1, sep="-")
+    
+    sample.LL <- cbind(sample.LL, GID_100m = GID_100m)
 
     ### write an OGR file (e.g. KML) for visualization, navigation ... 
     ### for different OGR drivers see: http://www.gdal.org/ogr/ogr_formats.html
-    write.csv(as.data.frame(sample.LL), paste("csv/E", location[1],"N", location[2], "_", n_pixel*16, ".csv", sep=""), row.names=FALSE)
+    write.csv(sample.LL, paste("csv/E", location[1],"N", location[2], "_", n_pixel*16, ".csv", sep=""), row.names=FALSE)
 }
