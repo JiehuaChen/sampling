@@ -7,7 +7,7 @@ import pyproj
 
 
 def main():				
-	csv_files = glob.glob("csv/*.csv")
+	csv_files = glob.glob("output/*.csv")
 	for f in csv_files:
 		print "Writing KML file for %s" % (f,)
 		csv_to_kml(f)	
@@ -20,7 +20,7 @@ def csv_to_kml(input_filename):
 	reader = csv.DictReader(csv_file)
 	# preamble 
 	input_filename_base, input_filename_ext = os.path.splitext(input_filename)
-		
+	print(input_filename_base)	
 	# open output file
 	kml_file = open(input_filename_base + '.kml','w')
 
@@ -59,6 +59,7 @@ def csv_to_kml(input_filename):
 	kml_file.write('\t</Document>\n\t</kml>')
 	csv_file.close()
 	kml_file.close()
+
 	gids_unique = list(gids_unique)
 	locs_1k_unique = []
 	for gid in gids_unique:
@@ -82,7 +83,7 @@ def csv_to_kml(input_filename):
                                                   project(loc_laea[0]-500, loc_laea[1]-500, inverse=True), 
                                                   project(loc_laea[0]-500, loc_laea[1]+500, inverse=True)])
             pol.polystyle.color = 'ff0000ff' 
-	    kml.save("csv/"+gids_unique[i]+".kml")
+	    kml.save("output/drone_flight_1k/"+gids_unique[i]+".kml")
 
 if __name__ == '__main__':
-	main()
+    main()
