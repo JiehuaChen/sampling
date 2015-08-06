@@ -83,4 +83,5 @@ mstage_sampling <- function(location, n_pixel, grid_size){
     ### write an OGR file (e.g. KML) for visualization, navigation ... 
     ### for different OGR drivers see: http://www.gdal.org/ogr/ogr_formats.html
     write.csv(sample.LL, paste("csv/E", location[1],"N", location[2], "_", n_pixel*16, ".csv", sep=""), row.names=FALSE)
+    return(sample.LL)
 }
