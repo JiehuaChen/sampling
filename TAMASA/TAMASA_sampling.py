@@ -30,7 +30,7 @@ def create_square(x, y, pixelWidth, pixelHeight):
     return shapely.geometry.Polygon([(x, y),
                                      (x + pixelWidth, y),
                                      (x + pixelWidth, y + pixelHeight),
-                                     (x, y + pixelHeight)])
+                                     (x + pixelWidth, y + pixelHeight)])
 
 
 # 1.2 Calculating GID
