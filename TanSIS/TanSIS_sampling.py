@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[73]:
+# In[78]:
 
 import os
 import random
@@ -28,10 +28,9 @@ import multistage_sampling
 
 ### Getting Geosurvey data
 
-#### data folder is zipped and shared in https://www.dropbox.com/s/zrq0bx83dgzpvsp/data.zip?dl=0
 
-shpfile = "data/sagcot_districts_laea.shp"
-inputfile = "data/geosurvey_crp_prediction_10k.tif"
+shpfile = "sagcot_districts_laea.shp"
+inputfile = "../data/geosurvey_crp_prediction_10k.tif"
 cmd = "gdalwarp -cutline " + shpfile + " -crop_to_cutline -srcnodata \"nan\" -dstnodata \"nan\" " + inputfile + " output.tif"
 os.system(cmd)
 
@@ -43,6 +42,21 @@ originX, pixelWidth, rx, originY, ry, pixelHeight = crpdat.GetGeoTransform()
 
 
 
+cutoff = 0.5
+crp_presence_loc = np.where(crp_prob_np > cutoff)
+n_presence = crp_presence_loc[0].shape[0]
+
+
+
+def getcoords(idxx, idxy, w=pixelWidth, h=pixelHeight, x0 = originX, y0=originY):
+    x = x0 + w * idxy
+    y = y0 + h * idxx
+    return [x,y]
+
+crp_presence_coords = list(starmap(getcoords, zip(*crp_presence_loc)))
+
+
+
 shpfile = "sagcot_districts_laea.shp"
 districts_roi_shp = shapefile.Reader(shpfile, 'rb')
 districts_roi_names = map(lambda x: x[6], districts_roi_shp.records())
@@ -51,17 +65,28 @@ districts_roi_names = map(lambda x: x[6], districts_roi_shp.records())
 ### Find locations within each district, which have cropland presence probability larger than the cutoff value
 
 
-def sum_narm(x, cutoff=0.5):
-    mdat = np.ma.masked_array(x>cutoff,np.isnan(x))
-    mm = np.sum(mdat)
-    return mm
-def highlocs(x, cutoff=0.5):
-    mdat2 = np.ma.masked_outside(x, cutoff, 1)
-    return np.where(mdat2)
-stats = zonal_stats("sagcot_districts_laea.shp", "output.tif", add_stats={'sum_narm':sum_narm, 'highlocs':highlocs})
-locs_crp = map(lambda x: [x['highlocs'][0].compressed(), x['highlocs'][1].compressed()], stats)
-crp_area = map(lambda x: x['sum_narm'], stats)
-crp_area_prob = map(lambda x: x/ float(sum(crp_area)), crp_area)
+regions = districts_roi_shp.shapes()
+square_size = 10000
+progress_mark = 500
+
+
+
+points_with_regions = []
+
+rtree_idx = index.Index()
+for i,r in enumerate(regions):
+    rtree_idx.insert(i,r.bbox)
+    
+n = len(crp_presence_coords)
+locs_inregion = []
+for k,georef in enumerate(crp_presence_coords):
+    if 0 == k % progress_mark: print "{}/{} ~= {:.2f}%% complete".format(k,n,100*float(k)/n)
+    x,y = georef
+    square = shapely.geometry.geo.box(x, y, x+square_size, y+square_size)
+    for j in rtree_idx.intersection((x,y,x+square_size,y+square_size)):
+        if shapely.geometry.asShape(regions[j]).contains(square):
+            points_with_regions.append([x,y,j]) 
+            break # WARNING: this assumes exactly one region will contain the point
 
 
 
@@ -69,7 +94,19 @@ cmd = "rm output.tif"
 os.system(cmd)
 
 
-# ### sample size
+### Summarize the high cropland presence locations by districts
+
+
+points_with_regions_pd = pd.DataFrame(zip(*points_with_regions)).transpose()
+points_with_regions_pd.columns = ['x','y','district']
+district_highcrp = map(lambda x: int(x), points_with_regions_pd.groupby('district').count().index)
+district_highcrp_count = points_with_regions_pd.groupby('district').count()
+crp_area_prob = [district_highcrp_count[district_highcrp_count.index==k].x.get_values()[0] if k in district_highcrp else 0 for k in xrange(len(districts_roi_names))]
+crp_area_prob = map(lambda x: x*1.0/sum(crp_area_prob), crp_area_prob)
+
+
+### sample size
+
 
 n_10k = 100
 n_1k = 4
@@ -77,13 +114,20 @@ n_100m = 5
 n_10k_perdistrict = map(lambda x: int(math.ceil(n_10k*x)), crp_area_prob)
 
 
-# ### Start Sampling
+### Start Sampling
 
 
 for k, sample_n_10k in enumerate(n_10k_perdistrict):
-    sampled_locs_idx = random.sample(xrange(crp_area[k]), sample_n_10k)
-    x_current_lower = [originX + pixelWidth *locs_crp[k][0][i]- pixelWidth/2 for i in  sampled_locs_idx]
-    y_current_lower = [originY + pixelHeight *locs_crp[k][1][i] - pixelHeight/2 for i in  sampled_locs_idx]
-    multistage_sampling.sample(x_current_lower,  y_current_lower, n_100m, districts_roi_names[k])
+    if sample_n_10k >0:
+        district_locs = points_with_regions_pd[points_with_regions_pd.district==k]
+        sampled_locs_idx = random.sample(list(district_locs.index), sample_n_10k)
+        sampled_locs =  district_locs.ix[sampled_locs_idx]
+        x_current_lower = list(sampled_locs.x.get_values())
+        y_current_lower = list(sampled_locs.y.get_values())
+        multistage_sampling.sample(x_current_lower,  y_current_lower, n_100m, districts_roi_names[k])
+
+
+
+
 
 

@@ -124,9 +124,9 @@ while i < n:
         init_flag = False
         sampled_loc_idx = random.sample(xrange(n_presence), 1)
         x_current_origin = originX + pixelWidth * \
-            crp_presence_loc[0][sampled_loc_idx[0]]
-        y_current_origin = originY + pixelHeight * \
             crp_presence_loc[1][sampled_loc_idx[0]]
+        y_current_origin = originY + pixelHeight * \
+            crp_presence_loc[0][sampled_loc_idx[0]]
         pixel_current = create_square(
             x_current_origin, y_current_origin, res_1, res_1)
 
