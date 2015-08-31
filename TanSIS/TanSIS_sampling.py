@@ -1,8 +1,3 @@
-
-# coding: utf-8
-
-# In[2]:
-
 import os
 import random
 import string
@@ -26,7 +21,7 @@ from shapely.geometry import Point
 import multistage_sampling 
 
 
-### Getting Geosurvey data: those data are shared through dropbox link: https://www.dropbox.com/s/zrq0bx83dgzpvsp/data.zip?dl=0
+# ### Getting Geosurvey data: those data are shared through dropbox link: https://www.dropbox.com/s/zrq0bx83dgzpvsp/data.zip?dl=0
 
 shpfile = "data/sagcot_northcentralcot_laea.shp"
 inputfile = "data/geosurvey_crp_prediction_10k.tif"
@@ -61,13 +56,12 @@ districts_roi_shp = shapefile.Reader(shpfile, 'rb')
 districts_roi_names = map(lambda x: x[6], districts_roi_shp.records())
 
 
-### Find locations within each district, which have cropland presence probability larger than the cutoff value
+# ### Find locations within each district, which have cropland presence probability larger than the cutoff value
 
 
 regions = districts_roi_shp.shapes()
 square_size = 10000
 progress_mark = 500
-
 
 
 points_with_regions = []
@@ -93,7 +87,7 @@ cmd = "rm output.tif"
 os.system(cmd)
 
 
-### Find high cropland presence grids and their locations
+# ### Find high cropland presence grids and their locations
 
 
 points_with_regions_pd = pd.DataFrame(zip(*points_with_regions)).transpose()
@@ -104,7 +98,7 @@ crp_area_prob = [district_highcrp_count[district_highcrp_count.index==k].x.get_v
 crp_area_prob = map(lambda x: x*1.0/sum(crp_area_prob), crp_area_prob)
 
 
-### sample size
+# ### sample size
 
 
 n_10k = 100
@@ -113,7 +107,7 @@ n_100m = 5
 n_10k_perdistrict = map(lambda x: int(math.ceil(n_10k*x)), crp_area_prob)
 
 
-### Start Sampling
+# ### Start Sampling: the results are sampling results of csv files for each district, csv, kml files for each 10k-by-10k, kml files for drone flights organized in the corresponding district folder
 
 
 for k, sample_n_10k in enumerate(n_10k_perdistrict):
@@ -124,9 +118,17 @@ for k, sample_n_10k in enumerate(n_10k_perdistrict):
         x_current_lower = list(sampled_locs.x.get_values())
         y_current_lower = list(sampled_locs.y.get_values())
         multistage_sampling.sample(x_current_lower,  y_current_lower, n_100m, districts_roi_names[k])
-
-
-
-
-
+    
+        sampled_data = pd.read_csv('output/'+districts_roi_names[k]+'/'+districts_roi_names[k]+'_'+str(0)+'.csv')[['y','x']]
+        total_file = 'output/'+districts_roi_names[k]+'/'+districts_roi_names[k]+'.csv'
+        sampled_data.to_csv(total_file, index=False)
+        if sample_n_10k>1:
+            with open(total_file, 'a') as f:            
+                for s in xrange(1, sample_n_10k):
+                    filename = 'output/'+districts_roi_names[k]+'/'+districts_roi_names[k]+'_'+str(s)+'.csv'
+                    sampled_data = pd.read_csv(filename)[['y','x']]
+                    sampled_data.to_csv(f, header=False, index=False)
+            
+        filenames_gpx = [os.system('rm '+'output/'+districts_roi_names[k]+'/'+districts_roi_names[k]+'_'+str(s)+'_Waypoints'+'.csv') for s in xrange(sample_n_10k)]
+        
 
