@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[78]:
+# In[2]:
 
 import os
 import random
@@ -26,11 +26,10 @@ from shapely.geometry import Point
 import multistage_sampling 
 
 
-### Getting Geosurvey data
+### Getting Geosurvey data: those data are shared through dropbox link: https://www.dropbox.com/s/zrq0bx83dgzpvsp/data.zip?dl=0
 
-
-shpfile = "sagcot_districts_laea.shp"
-inputfile = "../data/geosurvey_crp_prediction_10k.tif"
+shpfile = "data/sagcot_northcentralcot_laea.shp"
+inputfile = "data/geosurvey_crp_prediction_10k.tif"
 cmd = "gdalwarp -cutline " + shpfile + " -crop_to_cutline -srcnodata \"nan\" -dstnodata \"nan\" " + inputfile + " output.tif"
 os.system(cmd)
 
@@ -57,7 +56,7 @@ crp_presence_coords = list(starmap(getcoords, zip(*crp_presence_loc)))
 
 
 
-shpfile = "sagcot_districts_laea.shp"
+shpfile = "sagcot_northcentralcot.shp"
 districts_roi_shp = shapefile.Reader(shpfile, 'rb')
 districts_roi_names = map(lambda x: x[6], districts_roi_shp.records())
 
@@ -94,7 +93,7 @@ cmd = "rm output.tif"
 os.system(cmd)
 
 
-### Summarize the high cropland presence locations by districts
+### Find high cropland presence grids and their locations
 
 
 points_with_regions_pd = pd.DataFrame(zip(*points_with_regions)).transpose()
