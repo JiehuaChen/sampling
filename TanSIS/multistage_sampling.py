@@ -128,14 +128,14 @@ def sample(lowerlocationsx, lowerlocationsy, number_of_samples, district_name, n
         xy_1k_latlon = zip(*xy_1k_latlon)
         
         GID_L0 = zip(GID_1k, L0)
-        GID_100m = map(lambda (x, y): x+"-"+str(y), GID_L0)
+        GID_100m = map(lambda (x, y): x+"-"+str(y-1), GID_L0)
         
         IDs = concatenate(L2, L1, L0, sep='')
 
         # update grid with level ID's
         grid['L2'] = L2
         grid['L1'] = L1
-        grid['L0'] = L0
+        grid['L0'] = map(lambda x: x-1, L0)
         grid['ID_unit'] = IDs
         grid['GID_1k'] = GID_1k
         grid['GID_100m'] = GID_100m
