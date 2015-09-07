@@ -192,7 +192,7 @@ def sample(lowerlocationsx, lowerlocationsy, number_of_samples, district_name, n
         
         wpts = df[["x", "y", "GID_100m"]]
         wpts.to_csv(filename+"_Waypoints.csv", index=False)
-        cmd = 'gpsbabel -i csv -f ' +filename+'_Waypoints.csv -o gpx -F '+ filename+'_Waypoints.gpx'
+        cmd = 'gpsbabel -i csv -f "' +filename+'_Waypoints.csv" -o gpx -F "'+ filename+'_Waypoints.gpx"'
 
         c = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (stdout, stderr) = c.communicate()
