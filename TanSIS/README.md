@@ -8,7 +8,7 @@
 
         [Dropbox TanSIS folder: data.zip](https://www.dropbox.com/s/zrq1bx83dgzpvsp/data.zip?dl=0)
 
-    * unzip data.zip, anput all the csv files in the "data" folder.
+    * unzip data.zip, and put all the csv files in the "data" folder.
 
 2. run the script:
 
