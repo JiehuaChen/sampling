@@ -63,6 +63,8 @@ crp_presence_coords = list(starmap(getcoords, zip(*crp_presence_loc)))
 
 # In[6]:
 
+print("Load in data!")
+
 shpfile = "data/tansis_sampling_districts_laea.shp"
 districts_roi_shp = shapefile.Reader(shpfile, 'rb')
 districts_roi_names = map(lambda x: x[6], districts_roi_shp.records())
@@ -78,6 +80,8 @@ progress_mark = 500
 
 
 # In[8]:
+
+print("Extract 10k-by-10k grid locations with high cropland presence!")
 
 points_with_regions = []
 
@@ -142,6 +146,8 @@ random.seed(20150906)
 
 
 # In[21]:
+
+print("Start sampling!!")
 
 for k, sample_n_10k in enumerate(n_10k_perdistrict):
     if sample_n_10k >0:
