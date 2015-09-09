@@ -1,12 +1,12 @@
 ### TanSIS Sampling Plan
 
-1. Download the data
+1. download the data
 
     * create a folder called "data" in the repo folder;
 
     * download the zip file from
 
-    	[Dropbox TanSIS folder: data.zip](https://www.dropbox.com/s/zrq1bx83dgzpvsp/data.zip?dl=0)
+    [Dropbox TanSIS folder: data.zip](https://www.dropbox.com/s/zrq1bx83dgzpvsp/data.zip?dl=0)
 
     * unzip data.zip, anput all the csv files in the "data" folder.
 
@@ -23,6 +23,3 @@
     ```python
         python TanSIS_sampling.py
     ```
-
-3. results are saved in output/ folder: one folder for each district, and a csv file: **sampled\_locs\_total.csv**, including all sampled locations.
-
