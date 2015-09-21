@@ -7,7 +7,8 @@ import random
 import spatial_csv_to_kml
 import os
 import subprocess
-
+import gdal
+from itertools import starmap
 
 def cleanstrata(vector):
     """
@@ -56,19 +57,19 @@ def GID_1k_func(location):
         
     GID=gidx+"-"+gidy
     return GID, xgid, ygid
-def sample(lowerlocationsx, lowerlocationsy, number_of_samples, district_name, number_of_1_by_1=4, directory=''):
-    """
-    Implements multilevel spatial sampling.
-    Writes the samples into csv file and converts it into kml.
-    Args:
-        lowerlocationsx: list of longitudes for centres of confluence points
-        lowerlocationsy: list of latitudes for centres of confluence points 
-        number_of_samples: number of samples in the last level of sampling
-        directory: where to save files
-    Returns:
-        filenames: list of strings, s.t. filename.csv and filename.kml are the generated files.
-    """
-    # system to project to
+
+def getrasteridx(x, y, w, h, x0, y0):
+    idx = math.floor((x-x0)/w)
+    idy = math.floor((y-y0)/h)
+    return [int(idx),int(idy)]
+
+
+def sample(lowerlocationsx, lowerlocationsy, number_of_samples, district_name, tiffile_1k, number_of_1_by_1=4, directory=''):
+    
+    tiffile_1k = "mean_output_1k.tif"
+    crpdat = gdal.Open(tiffile_1k, gdal.GA_ReadOnly)
+    crp_prob_np = np.asarray(crpdat.GetRasterBand(1).ReadAsArray())
+    originX, pixelWidth, rx, originY, ry, pixelHeight = crpdat.GetGeoTransform()
 
     filenames = []
     for i in xrange(0, len(lowerlocationsx)):
@@ -142,68 +143,101 @@ def sample(lowerlocationsx, lowerlocationsy, number_of_samples, district_name, n
         grid['x_1k'] = list(xy_1k_latlon[0])
         grid['y_1k'] = list(xy_1k_latlon[1])
         
-        samples = []
-        sizes = [number_of_1_by_1, number_of_samples]
+        # calculate selection probabilities for 1k-by-1k grids
 
+        xy_1k = list(set(map(tuple,zip(*[x_1k, y_1k]))))
+        xy_1k = zip(*map(lambda x: list(x), xy_1k))
+        xy_1k.extend([tuple([pixelWidth]*len(x_1k)), tuple([pixelHeight]*len(x_1k)), tuple([originX]*len(x_1k)), tuple([originY]*len(x_1k))])
+        crp_presence_idx = list(starmap(getrasteridx, zip(*xy_1k)))
+
+        crp_prob_grid = [crp_prob_np[x[1]][x[0]] for x in crp_presence_idx]
+
+        xy_1k = zip(*xy_1k[:2])
+        xy_1k_pd = pd.DataFrame(xy_1k)
+        xy_1k_pd.columns = ['x', 'y']
+        X2 = ((xy_1k_pd['x'] - xoff + 1.0/2*xdim)/res_pixel[0]).map(math.ceil)
+        Y2 = ((xy_1k_pd['y'] - yoff + 1.0/2*ydim)/res_pixel[0]).map(math.ceil)
+        L2_1k = cleanstrata(concatenate(X2, Y2, sep=''))
+
+        X1 = ((X2*res_pixel[0] - (xy_1k_pd['x'] - xoff))/res_pixel[1]).map(math.ceil)
+        Y1 = ((Y2*res_pixel[0] - (xy_1k_pd['y'] - yoff))/res_pixel[1]).map(math.ceil)
+        L1_1k = cleanstrata(concatenate(X1, Y1, sep=''))
+
+        cutoff_1k = 0.3        
+        select_prob_1k = map(lambda x: 0 if np.isnan(x) or x<cutoff_1k else x, crp_prob_grid)
+
+        select_prob_1k =pd.DataFrame(zip(*[select_prob_1k, L2_1k, L1_1k]))
+        select_prob_1k.columns =['prob', 'L2', 'L1']
+        select_prob_1k['num_nonzero'] = select_prob_1k.prob>0
+        
+        size_1k_permit = select_prob_1k.groupby('L2').sum().num_nonzero.get_values()
+        
+        if any(size_1k_permit):
+            samples = []
+            L1_prob = []
+            L2_prob = []
+
+            size_1k = [int(x) if x< number_of_1_by_1 else number_of_1_by_1 for x in size_1k_permit]
+            print(size_1k)
         # taking samples
-        for (name, L2_group) in grid.groupby(['L2']):
+            for (name, L2_group) in grid.groupby(['L2']):
             # take all L2 groups
-            grouped = L2_group.groupby(['L1'])
-            choices = [key for key in grouped.indices.keys()]
+                if(size_1k[name-1]>0):
+                    grouped = L2_group.groupby(['L1'])
+                    choices = [key for key in grouped.indices.keys()]
+                    prob = select_prob_1k[select_prob_1k.L2==name].sort('L1').prob.get_values()
+                    prob = map(lambda x: x*1.0/sum(prob), prob)
             # select L1 in each L2
-            sample = random.sample(choices, sizes[0])
+                    sample = np.random.choice(choices, size_1k[name-1], p=prob)
 
-            for L1_value in sample:
+                    for L1_value in sample:
                 # in each selected L1 select 100x100 blocks
-                L1_group = grouped.get_group(L1_value)
-                choices = [j for j in xrange(len(L1_group.index))]
-                sample = random.sample(choices, sizes[1])
-                for s in sample:
-                    row = L1_group.irow(s)
+                        L1_group = grouped.get_group(L1_value)
+                        choices = [j for j in xrange(len(L1_group.index))]
+                        sample = random.sample(choices, number_of_samples)
+                        for s in sample:
+                            row = L1_group.irow(s)
                     # project back to longitude/latitude
-                    row['x'], row['y'] = project(row['x'], row['y'], inverse=True)
-                    samples.append(row)
-
-        df = pd.DataFrame(samples)
+                            row['x'], row['y'] = project(row['x'], row['y'], inverse=True)
+                            samples.append(row)
+                            L1_prob_tmp = prob[L1_value-1]
+                            L1_prob.append(L1_prob_tmp)
+                            L2_prob.append(number_of_samples/(1.0*res_pixel[1]/res_pixel[2])**2  * L1_prob_tmp)
+                    
+            df = pd.DataFrame(samples)
         # find probability of choosing L1
-        df['Prob_.3._stage'] = sizes[1]/(1.0*res_pixel[1]/res_pixel[2])**2
+            df['prob_1k'] = L1_prob
         # find probability of choosing an 100x100 block
-        df['Prob'] = sizes[0]/(1.0*res_pixel[0]/res_pixel[1])**2 * df['Prob_.3._stage']
-
-
-        
-        if not os.path.exists('output/'+district_name):
-            os.makedirs('output/'+district_name)
+            df['prob'] = L2_prob
 
         
-        if not os.path.exists('output/'+district_name+'/drone_flight_1k'):
-            os.makedirs('output/'+district_name+'/drone_flight_1k')
+            if not os.path.exists('output/'+district_name):
+                os.makedirs('output/'+district_name)
+
         
-        # write to csv
-        filename = 'output/'+district_name+'/'+district_name+"_"+str(i)
-        df.to_csv(filename + '.csv', index=False)
-
-
+            if not os.path.exists('output/'+district_name+'/drone_flight_1k'):
+                os.makedirs('output/'+district_name+'/drone_flight_1k')
+        
+            # write to csv
+            filename = 'output/'+district_name+'/'+district_name+"_"+str(i)
+            df.to_csv(filename + '.csv', index=False)
 
         # convert to kml
-        spatial_csv_to_kml.csv_to_kml(filename + '.csv')
+            spatial_csv_to_kml.csv_to_kml(filename + '.csv')
 
         # convert to gpx 
-        
-        wpts = df[["x", "y", "GID_100m"]]
-        wpts.to_csv(filename+"_Waypoints.csv", index=False)
-        cmd = 'gpsbabel -i csv -f "' +filename+'_Waypoints.csv" -o gpx -F "'+ filename+'_Waypoints.gpx"'
+            cmd = 'gpsbabel -i kml -f "' +filename+'.kml" -o gpx -F "'+ filename+'_Waypoints.gpx"'
+            c = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            (stdout, stderr) = c.communicate()
+            rc = c.returncode
 
-        c = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        (stdout, stderr) = c.communicate()
-        rc = c.returncode
-
-        filenames.append(filename)
+            filenames.append(filename)
     return filenames
+
 
 
 if __name__ == '__main__':
     # Example of running from command line:
     # ./sampling.py 38,3 10,8 40
     # the 1st argument is a list of longitudes, the 2nd is a list of latitudes and the 3rd is the number of samples
-    print sample([float(x) for x in sys.argv[1].split(',')], [float(y) for y in sys.argv[2].split(',')], int(sys.argv[3]), str(sys.argv[4]))
+    print sample([float(x) for x in sys.argv[1].split(',')], [float(y) for y in sys.argv[2].split(',')], int(sys.argv[3]), str(sys.argv[4]), str(sys.argv[5]))
