@@ -32,26 +32,36 @@ import multistage_sampling
 # In[2]:
 
 shpfile = "data/tansis_sampling_districts_laea.shp"
-inputfile = "data/geosurvey_crp_prediction_10k.tif"
-cmd = "gdalwarp -cutline " + shpfile + " -crop_to_cutline -srcnodata \"nan\" -dstnodata \"nan\" " + inputfile + " output.tif"
+inputfile = "data/TZ_mean_10k.tif"
+cmd = "gdalwarp -cutline " + shpfile + " -crop_to_cutline -srcnodata \"nan\" -dstnodata \"nan\" " + inputfile + " mean_output.tif"
 os.system(cmd)
 
-
-# In[3]:
-
-crpdat = gdal.Open("output.tif", gdal.GA_ReadOnly)
-crp_prob_np = np.asarray(crpdat.GetRasterBand(1).ReadAsArray())
-originX, pixelWidth, rx, originY, ry, pixelHeight = crpdat.GetGeoTransform()
+inputfile = "data/TZ_crp_ens_1k.tif"
+cmd = "gdalwarp -cutline " + shpfile + " -crop_to_cutline -srcnodata \"nan\" -dstnodata \"nan\" " + inputfile + " mean_output_1k.tif"
+os.system(cmd)
 
 
 # In[4]:
 
-cutoff = 0.5
-crp_presence_loc = np.where(crp_prob_np > cutoff)
-n_presence = crp_presence_loc[0].shape[0]
+crpdat = gdal.Open("mean_output.tif", gdal.GA_ReadOnly)
+crp_prob_np = np.asarray(crpdat.GetRasterBand(1).ReadAsArray())
+originX, pixelWidth, rx, originY, ry, pixelHeight = crpdat.GetGeoTransform()
+
+crpdat_1k = gdal.Open("mean_output_1k.tif", gdal.GA_ReadOnly)
+crp_prob_np_1k = np.asarray(crpdat.GetRasterBand(1).ReadAsArray())
+originX_1k, pixelWidth_1k, rx_1k, originY_1k, ry_1k, pixelHeight_1k = crpdat.GetGeoTransform()
 
 
 # In[5]:
+
+cutoff_mean = 0.7
+cutoff_sd = 0.1
+crp_presence_loc = np.where((crp_prob_np>cutoff_mean))
+n_presence = crp_presence_loc[0].shape[0]
+n_presence
+
+
+# In[6]:
 
 def getcoords(idxx, idxy, w=pixelWidth, h=pixelHeight, x0 = originX, y0=originY):
     x = x0 + w * idxy
@@ -61,9 +71,7 @@ def getcoords(idxx, idxy, w=pixelWidth, h=pixelHeight, x0 = originX, y0=originY)
 crp_presence_coords = list(starmap(getcoords, zip(*crp_presence_loc)))
 
 
-# In[6]:
-
-print("Load in data!")
+# In[7]:
 
 shpfile = "data/tansis_sampling_districts_laea.shp"
 districts_roi_shp = shapefile.Reader(shpfile, 'rb')
@@ -72,16 +80,14 @@ districts_roi_names = map(lambda x: x[6], districts_roi_shp.records())
 
 # ### Find locations within each district, which have cropland presence probability larger than the cutoff value
 
-# In[7]:
+# In[8]:
 
 regions = districts_roi_shp.shapes()
 square_size = 10000
 progress_mark = 500
 
 
-# In[8]:
-
-print("Extract 10k-by-10k grid locations with high cropland presence!")
+# In[9]:
 
 points_with_regions = []
 
@@ -100,12 +106,6 @@ for k,georef in enumerate(crp_presence_coords):
         if shapely.geometry.asShape(regions[j]).contains(square):
             points_with_regions.append([x,y,j]) 
             break # WARNING: this assumes exactly one region will contain the point
-
-
-# In[9]:
-
-cmd = "rm output.tif"
-os.system(cmd)
 
 
 # In[10]:
@@ -140,14 +140,13 @@ sum(n_10k_perdistrict)
 
 # ### Start Sampling: the results are sampling results of csv files for each district, csv, kml files for each 10k-by-10k, kml files for drone flights organized in the corresponding district folder
 
-# In[20]:
+# In[28]:
 
 random.seed(20150906)
+reload(multistage_sampling)
 
 
-# In[21]:
-
-print("Start sampling!!")
+# In[29]:
 
 for k, sample_n_10k in enumerate(n_10k_perdistrict):
     if sample_n_10k >0:
@@ -156,7 +155,7 @@ for k, sample_n_10k in enumerate(n_10k_perdistrict):
         sampled_locs =  district_locs.ix[sampled_locs_idx]
         x_current_lower = list(sampled_locs.x.get_values()+5000)
         y_current_lower = list(sampled_locs.y.get_values()-5000)
-        multistage_sampling.sample(x_current_lower,  y_current_lower, n_100m, districts_roi_names[k])
+        multistage_sampling.sample(x_current_lower,  y_current_lower, n_100m, districts_roi_names[k], "mean_output_1k.tif")
     
         sampled_data = pd.read_csv('output/'+districts_roi_names[k]+'/'+districts_roi_names[k]+'_'+str(0)+'.csv')[['y','x']]
         total_file = 'output/'+districts_roi_names[k]+'/'+districts_roi_names[k]+'.csv'
@@ -172,7 +171,7 @@ for k, sample_n_10k in enumerate(n_10k_perdistrict):
         
 
 
-# In[15]:
+# In[30]:
 
 os.chdir("output/")
 import glob
