@@ -174,7 +174,7 @@ def sample(lowerlocationsx, lowerlocationsy, number_of_samples, district_name, t
                 os.makedirs('output/'+district_name+'/drone_flight_1k')
         
             # write to csv
-            filename = 'output/'+district_name+'/'+district_name+"_"+str(i)
+            filename = 'output/'+district_name+'/'+"E"+str(xycenter_GID[0])+"N"+str(xycenter_GID[1])
             df.to_csv(filename + '.csv', index=False)
 
         # convert to kml
