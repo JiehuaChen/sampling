@@ -28,7 +28,6 @@ def getrasteridx(x, y, w, h, x0, y0):
 
 def sample(lowerlocationsx, lowerlocationsy, number_of_samples, district_name, tiffile_1k, cutoff, number_of_1_by_1=4, directory=''):
     
-    tiffile_1k = "mean_output_1k.tif"
     crpdat = gdal.Open(tiffile_1k, gdal.GA_ReadOnly)
     crp_prob_np = np.asarray(crpdat.GetRasterBand(1).ReadAsArray())
     originX, pixelWidth, rx, originY, ry, pixelHeight = crpdat.GetGeoTransform()
@@ -195,4 +194,4 @@ if __name__ == '__main__':
     # Example of running from command line:
     # ./sampling.py 38,3 10,8 40
     # the 1st argument is a list of longitudes, the 2nd is a list of latitudes and the 3rd is the number of samples
-    print sample([float(x) for x in sys.argv[1].split(',')], [float(y) for y in sys.argv[2].split(',')], int(sys.argv[3]), str(sys.argv[4]), str(sys.argv[5]))
+    print sample([float(x) for x in sys.argv[1].split(',')], [float(y) for y in sys.argv[2].split(',')], int(sys.argv[3]), str(sys.argv[4]), str(sys.argv[5]), float(sys.argv[6])
