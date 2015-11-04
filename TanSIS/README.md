@@ -6,7 +6,7 @@
 
     * download the zip file from
 
-        [Dropbox TanSIS folder: data.zip](https://www.dropbox.com/s/zrq1bx83dgzpvsp/data.zip?dl=0)
+        [Dropbox TanSIS folder: TanSIS_samplingdata.zip](https://www.dropbox.com/s/ihsiaweyvc8y119/TanSIS_samplingdata.zip?dl=0)
 
     * unzip data.zip, and put all the data files in the "data" folder.
 

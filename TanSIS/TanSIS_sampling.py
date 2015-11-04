@@ -26,8 +26,7 @@ from shapely.geometry import Point
 import multistage_sampling 
 
 
-# ### Getting Geosurvey data: those data are shared through dropbox link: https://www.dropbox.com/s/zrq0bx83dgzpvsp/data.zip?dl=0
-# 
+# ### Getting Geosurvey data: those data are shared through dropbox link: https://www.dropbox.com/s/ihsiaweyvc8y119/TanSIS_samplingdata.zip?dl=0 
 
 # In[2]:
 
